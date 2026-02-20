@@ -1,16 +1,17 @@
 import requests
 import json
-import time
+import os
 from kafka import KafkaProducer
-
+from dotenv import load_dotenv
 
 # lädt variablen aus der .env Datei
 load_dotenv()
 
-#Konfiguration
+# Konfiguration (aus der .env geladen)
+APP_ID = os.getenv("ADZUNA_APP_ID")
+APP_KEY = os.getenv("ADZUNA_APP_KEY")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 
-APP_ID = "239209ff"
-APP_KEY = "9023b3224c109b13c6119a36f8aced07"
 QUERY = "Python"
 LOCATION = "Berlin"
 
@@ -36,20 +37,21 @@ def fetch_adzuna_jobs():
             return [] 
     
         data = response.json()
-        results =  data.get('results', [])
+        results = data.get('results', [])
         print(f"Gefundene Jobs: {len(results)}")
         return results
            
     except Exception as e:
         print(f" Fehler beim API-Abruf: {e}")
         return []
-def start_scout():
-#Muss sowohl lokal auf Rechner laufen localhost als auch innerhalb Dockers kafka
-    bootstrap = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 
-#Kafka Producer setup
+def start_scout():
+    # Muss sowohl lokal auf Rechner laufen localhost als auch innerhalb Dockers kafka
+    bootstrap = KAFKA_BOOTSTRAP
+
+    # Kafka Producer setup
     producer = KafkaProducer(
-        bootstrap_servers=['127.0.0.1:9092'],
+        bootstrap_servers=[bootstrap],
         value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
     
@@ -62,7 +64,7 @@ def start_scout():
     print(f"{len(jobs)} Jobs gefunden. Sende an Kafka...")
    
     for job in jobs:
-        #Daten aufbereiten
+        # Daten aufbereiten
         job_data = {
             "source": "adzuna",
             "external_id": job.get('id'),
@@ -73,14 +75,14 @@ def start_scout():
             "salary_min": job.get('salary_min'),
             "redirect_url": job.get("redirect_url")
         }
-        #Python Dictionary wird von value_serializer in  binären Json String umgewandelt
+        # Python Dictionary wird von value_serializer in binären Json String umgewandelt
         producer.send('it-jobs-raw', value=job_data)
         print(f"Gesendet: {job_data['title']} bei {job_data['company']}")
-         
-        #Nachrichten im Zwischenspeicher werden an Kafka Broker gesendet
-        producer.flush()
-        producer.close()
-        print("\n Alle Jobs wurden erfolreich an Kafka übertragen")
+        
+    # Nachrichten im Zwischenspeicher werden an Kafka Broker gesendet
+    producer.flush()
+    producer.close()
+    print("\n Alle Jobs wurden erfolreich an Kafka übertragen")
 
 if __name__ == "__main__":
     start_scout()
