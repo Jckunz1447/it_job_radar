@@ -4,7 +4,7 @@ import psycopg2
 from kafka import KafkaConsumer, TopicPartition
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
-
+from datetime import datetime 
 # .env laden 1 Verezichnis weiter oben
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
@@ -68,7 +68,7 @@ def start_consumer():
     consumer.assign([tp])
     consumer.seek_to_beginning()
     
-    print(f"🚀 Consumer aktiv. Verarbeite Nachrichten von {topic}...")
+    print(f" Consumer aktiv. Verarbeite Nachrichten von {topic}...")
 
     try:    
         while True:
@@ -116,7 +116,7 @@ def start_consumer():
                                 "created": job.get('created'),
                                 "salary_min": job.get('salary_min'),
                                 "redirect_url": job.get('redirect_url'),
-                                "ingested_at": "2026-02-23" # Zeitstempel für Kibana
+                                "ingested_at": datetime.now().isoformat() # Zeitstempel für Kibana
                             }
                             es.index(index="it-jobs-index", id=job.get('external_id'), document=es_doc)
                             print(f" In Elasticsearch indiziert.")
@@ -124,14 +124,14 @@ def start_consumer():
                             print(f"Elasticsearch Fehler: {es_e}")
             
     except KeyboardInterrupt:
-        print("\n🛑 Consumer manuell gestoppt.")
+        print("\n Consumer manuell gestoppt.")
     except Exception as e:
-        print(f"💥 Kritischer Fehler: {e}")
+        print(f" Kritischer Fehler: {e}")
     finally:
         if cur: cur.close()
         if conn: conn.close()
         consumer.close()
-        print("🔒 Verbindungen sauber geschlossen.")
+        print(" Verbindungen sauber geschlossen.")
 
 if __name__ == "__main__":
     start_consumer()
